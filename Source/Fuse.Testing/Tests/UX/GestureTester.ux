@@ -1,0 +1,3 @@
+<Panel ux:Class="UX.GestureTester">
+	<Panel ux:Name="target" Width="50" Height="50" Color="#fff" />
+</Panel>

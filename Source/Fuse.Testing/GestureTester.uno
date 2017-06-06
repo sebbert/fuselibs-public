@@ -77,5 +77,13 @@ namespace Fuse.Testing
 			
 			return null;
 		}
+		
+		/**
+			@advanced
+		*/
+		public static void Tap(Element elem)
+		{
+			new TapGesture(elem).Perform();
+		}
 	}
 }
