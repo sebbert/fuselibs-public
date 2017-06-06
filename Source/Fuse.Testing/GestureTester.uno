@@ -10,57 +10,72 @@ namespace Fuse.Testing
 	[UXGlobalModule]
 	public class GestureTester : NativeModule
 	{
-	    static readonly GestureTester _instance;
+		static readonly GestureTester _instance;
 
-	    public GestureTester()
-	    {
-	        // Make sure we're only initializing the module once
-	        if (_instance != null) return;
+		public GestureTester()
+		{
+			// Make sure we're only initializing the module once
+			if (_instance != null) return;
 
-	        _instance = this;
-	        Resource.SetGlobalKey(_instance, "FuseJS/GestureTester");
-	        AddMember(new NativeFunction("tap", (NativeCallback)tap));
-	    }
-
-		class Gesture
+			_instance = this;
+			Resource.SetGlobalKey(_instance, "FuseJS/GestureTester");
+			AddMember(new NativeFunction("tap", (NativeCallback)tap));
+		}
+		
+		class TapGesture
 		{
 			readonly Element _element;
-			public Gesture(Element elm) 
-			{
-				_element = elm;
-			}
-			public void Tap() 
-			{
-				var p = Vector.Transform(_element.ActualSize / 2, _element.WorldTransform).XY;
+			readonly float2 _windowPoint;
 
-				var press = new PointerEventData() {
+			public TapGesture(Element element)
+			{
+				_element = element;
+				_windowPoint = Vector.Transform(_element.ActualSize / 2, _element.WorldTransform).XY;
+			}
+
+			PointerEventData CreatePointerEventData()
+			{
+				return new PointerEventData
+				{
 					PointIndex = 0,
-					WindowPoint = p,
+					WindowPoint = _windowPoint,
 					IsPrimary = true,
 					PointerType = Uno.Platform.PointerType.Touch,
 					Timestamp = Time.FrameTime
 				};
+			}
 
-				Pointer.RaisePressed(_element, press);
+			public void Perform()
+			{
+				Pointer.RaisePressed(_element, CreatePointerEventData());
+				UpdateManager.PerformNextFrame(this.Release, UpdateStage.Primary);
+			}
 
-				var release = new PointerEventData() {
-					PointIndex = 0,
-					WindowPoint = p,
-					IsPrimary = true,
-					PointerType = Uno.Platform.PointerType.Touch,
-					Timestamp = Time.FrameTime + 0.30
-				};
-
-				Pointer.RaiseReleased(_element, release);
+			void Release()
+			{
+				Pointer.RaiseReleased(_element, CreatePointerEventData());
 			}
 		}
 
-	    static object tap(Context c, object[] args)
-	    {
-	    	var e = c.Wrap(args[0]) as Element;
-	    	if (e == null) throw new Exception("Argument must be an Element, got: " + args[0]);
-	        UpdateManager.PostAction(new Gesture(e).Tap);
-	        return null;
-	    }
+		/**
+			@scriptmethod tap(element)
+
+			Simulates a tap gesture at the center of the bounds of a given @Element.
+
+			**Note:** This only simulates taps at the window level.
+			This means that if an element is in front of the target, the frontmost element will receive events instead.
+		*/
+		static object tap(Context c, object[] args)
+		{
+			var e = c.Wrap(args[0]) as Element;
+			if (e == null)
+			{
+				throw new Exception("Argument must be an Element, got: " + args[0]);
+			}
+			
+			UpdateManager.PostAction(new TapGesture(e).Perform);
+			
+			return null;
+		}
 	}
 }
