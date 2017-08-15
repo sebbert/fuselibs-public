@@ -10,15 +10,15 @@ namespace Fuse.Reactive.FuseJS
 	[UXGlobalModule]
 	/**
 		@scriptmodule FuseJS/Timer
-		
+
 		The Timer API lets you schedule functions to be executed after a given time.
-		
+
 			var Timer = require("FuseJS/Timer");
 
 			Timer.create(function() {
 				console.log("This will run once, after 3 seconds");
 			}, 3000, false);
-			
+
 			Timer.create(function() {
 				console.log("This will run every 10 seconds until forever");
 			}, 10000, true);
@@ -37,7 +37,7 @@ namespace Fuse.Reactive.FuseJS
 		}
 
 		readonly TimerManager _tm;
-		
+
 		static TimerModule _instance;
 
 		public TimerModule()
@@ -45,7 +45,7 @@ namespace Fuse.Reactive.FuseJS
 			if(_instance != null) return;
 
 			Uno.UX.Resource.SetGlobalKey(_instance = this, "FuseJS/Timer");
-			
+
 			_tm = new TimerManager();
 			AddMember(new NativeFunction("create", (NativeCallback)Create));
 			AddMember(new NativeFunction("delete", (NativeCallback)Delete));
@@ -65,14 +65,14 @@ namespace Fuse.Reactive.FuseJS
 			@param time (number) The number of milliseconds to wait before calling the function.
 			@param repeat (boolean) If `true`, the timer will repeat until it is deleted, otherwise it will only run once.
 			@return (number) The ID of the timer, which can be used later to delete it.
-			
+
 			Schedules `func` to be called after `time` milliseconds.
 
 				var Timer = require("FuseJS/Timer");
 				Timer.create(function() {
 					console.log("This will run once, after 3 seconds");
 				}, 3000, false);
-				
+
 				Timer.create(function() {
 					console.log("This will run every 10 seconds until forever");
 				}, 10000, true);
@@ -92,25 +92,25 @@ namespace Fuse.Reactive.FuseJS
 			var innerArgs = new object[args.Length-3];
 			for (int i = 0; i < innerArgs.Length; i++)
 				innerArgs[i] = args[3+i];
-						
+
 			return _tm.AddTimer(ms, new CallbackClosure(context, func, innerArgs).Callback, repeat);
 		}
-		
-		
+
+
 		/**
 			@scriptmethod delete(timerId)
 			@param timerId (number) The ID of the timer to delete, as returned by `Timer.create()`.
-			
+
 			Deletes/unschedules a running timer.
-			
+
 			```
 			var Timer = require("FuseJS/Timer");
-			
+
 			var callCount = 0;
-			
+
 			var timerId = Timer.create(function() {
 				console.log("This will happen 3 times.");
-				
+
 				callCount++;
 				if(callCount >= 3) {
 					Timer.delete(timerId);
@@ -135,14 +135,13 @@ namespace Fuse.Reactive.FuseJS
 
 			return null;
 		}
-		
-		internal void UpdateModule(Scripting.Context context)
+
+		internal bool UpdateModule(Scripting.Context context)
 		{
 			// NOTE: Don't use UpdateManager for this, for things to run smoothly, this needs to be a JS only thread thing.
-			if(_tm != null)
-				_tm.Tick(context);
+			return _tm != null ? _tm.Tick(context) : false;
 		}
-		
+
 		class CallbackClosure
 		{
 			Scripting.Function _func;
@@ -233,12 +232,14 @@ namespace Fuse.Reactive.FuseJS
 			return null;
 		}
 
-		public void Tick(Scripting.Context context)
+		public bool Tick(Scripting.Context context)
 		{
+			var activity = false;
 			for (var i = 0; i < _timers.Count; i++)
 			{
-				_timers[i].Update(context);
+				activity = _timers[i].Update(context) || activity;
 			}
+			return activity;
 		}
 
 		class Timer
@@ -249,13 +250,13 @@ namespace Fuse.Reactive.FuseJS
 			readonly double _timeout;
 			readonly Action<Scripting.Context> _callback;
 			readonly bool _repeat;
-			
+
 			public bool _isRunning;
-			public double _startTime;			
-			
+			public double _startTime;
+
 			public readonly int ID;
 			public Action<int> OnStop;
-			
+
 			public Timer(double ms, Action<Scripting.Context> callback, bool repeat)
 			{
 				ID = _id++;
@@ -278,14 +279,18 @@ namespace Fuse.Reactive.FuseJS
 					OnStop(ID);
 			}
 
-			internal void Update(Scripting.Context context)
+			internal bool Update(Scripting.Context context)
 			{
-				if(!_isRunning) return;
+				if(!_isRunning) return false;
 
+				var activity = false;
 				var now = GetMilliseconds();
 				var elapsed = now - _startTime;
-				if (_timeout < elapsed)
+				// <= primarily for the case when _timeout == 0 and the timer granuality gives us 0 elapsed time
+				// it's unlikely, but theoretically possible
+				if (_timeout <= elapsed)
 				{
+					activity = true;
 					try
 					{
 						if(_callback != null)
@@ -299,6 +304,8 @@ namespace Fuse.Reactive.FuseJS
 							Stop();
 					}
 				}
+
+				return activity;
 			}
 
 			public static double GetMilliseconds()
