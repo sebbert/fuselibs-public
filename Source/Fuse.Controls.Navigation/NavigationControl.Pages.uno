@@ -40,7 +40,7 @@ namespace Fuse.Controls
 			if (_pageHistory == null)
 				return;
 				
-			var obs = _pageHistory as IObservable;
+			var obs = _pageHistory as IObservableArray;
 			if (obs != null)
 				_pageHistorySubscription = obs.Subscribe(this);
 				
