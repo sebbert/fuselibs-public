@@ -7,7 +7,7 @@ using Uno.IO;
 
 namespace Fuse.Scripting
 {
-	public partial class ScriptModule 
+	public partial class ScriptModule
 	{
 		internal static string ModuleContainsAnErrorMessage = "require(): module contains an error: ";
 
@@ -52,13 +52,13 @@ namespace Fuse.Scripting
 					{
 						if (_rt == null)
 							throw new Error( "require(): unable to resolve ux: prefixes: " + id );
-							
+
 						object res;
 						if (_rt.TryGetValue(id.Substring(uxPrefix.Length), out res)) return res;
-						
+
 						throw new Error("require(): ux name not found: " + id);
 					}
-					
+
 					var mod = _m.TryResolve(path, isFile);
 					if (mod == null)
 						throw new Error("require(): module not found: " + id);
@@ -160,10 +160,10 @@ namespace Fuse.Scripting
 		}
 
 
-		static Dictionary<string, Func<string, string>> _magicPaths = new Dictionary<string, Func<string, string>>();
-		internal static void AddMagicPath(string path, Func<string, string> preprocessor)
+		static Dictionary<string, Func<string, BundleFile, Module>> _magicPaths = new Dictionary<string, Func<string, BundleFile, Module>>();
+		internal static void AddMagicPath(string path, Func<string, BundleFile, Module> loader)
 		{
-			_magicPaths.Add(path, preprocessor);
+			_magicPaths.Add(path, loader);
 		}
 
 		BundleFile LookForFile(string path)
