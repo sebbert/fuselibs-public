@@ -45,6 +45,7 @@
     "FuseJS/TreeObservable.js:Bundle",
     "FuseJS/Model.js:Bundle",
     "FuseJS/ModelAdapter.js:Bundle",
+    "FuseJS/DI/index.js:Bundle",
     "FuseJS/ViewModelAdapter.js:Bundle",
     "FuseJS/EventEmitter.js:Bundle",
     "JavaScriptEngine.cil.uxl:Extensions",

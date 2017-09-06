@@ -135,19 +135,10 @@ namespace Fuse.Reactive
                     "if (!(modelClass instanceof Function) && '" + className +"' in modelClass) { modelClass = modelClass."+ className +" }\n"+
                     "if (!(modelClass instanceof Function)) { throw new Error('\"" + module + "\" does not export a class or function required to construct a Model'); }\n"+
                     "var model = Object.create(modelClass.prototype);\n"+
-                    (isRootModel ? "require('FuseJS/ModelAdapter').GlobalModel = model;\n" : "")+
                     "modelClass.call(model" + argString + ")\n"+
                     "module.exports = new Model(model);\n";
             
 			js.Code = code;
-        }
-
-        static Module TransformModel(string moduleName, BundleFile file)
-        {
-            var fileModule = new FileModule(new BundleFileSource(file));
-            fileModule.Preamble = "require('FuseJS/ModelAdapter').ModelAdapter(module.exports, (function() {\n";
-            fileModule.Postamble = "\n})());";
-            return fileModule;
         }
     }
 }
