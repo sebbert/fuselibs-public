@@ -25,7 +25,7 @@ namespace Fuse.Reactive
 				_props.Add(s, mirror.Reflect(obj[s]));
 			}
 		}
-
+		
 		public override void Unsubscribe()
 		{
 			if (_isDisposed) return;
