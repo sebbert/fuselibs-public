@@ -131,7 +131,7 @@ namespace Fuse.Scripting.JavaScript
 			void PerformStart()
 			{
 				Perform(TreeObservable, 0);
-			}
+			} 
 
 			protected abstract int SpecialArgCount { get; }
 			protected abstract void Perform(object dc);
