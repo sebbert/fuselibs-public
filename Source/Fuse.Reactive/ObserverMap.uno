@@ -54,7 +54,6 @@ namespace Fuse.Reactive
 		{
 			Detach();
 			_observable = obs;
-			_slave = slave;
 			_disposable = _observable.Subscribe(this);
 			_subscription = _disposable as ISubscription;
 			if (_subscription == null)
@@ -62,6 +61,9 @@ namespace Fuse.Reactive
 				
 			//treat the bound observable as the source-of-truth
 			((IObserver)this).OnNewAll(obs);
+			
+			//after OnNewAll to avoid subscription feedback
+			_slave = slave;
 		}
 		
 		public void Detach()
