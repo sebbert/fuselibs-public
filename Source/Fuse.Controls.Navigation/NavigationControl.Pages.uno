@@ -68,12 +68,15 @@ namespace Fuse.Controls
 		{
 			string path = null;
 			var obj = data as IObject;
-			if (obj != null && obj.ContainsKey("$template")) //set implicitly by Model API
-				path = Marshal.ToType<string>(obj["$template"]);
-			if (obj != null && obj.ContainsKey("$path"))
-				path = Marshal.ToType<string>(obj["$path"]);
+			if(obj == null) return null;
+
+			if(obj.ContainsKey("$path"))
+				return Marshal.ToType<string>(obj["$path"]);
 				
-			return path;
+			if(obj.ContainsKey("__fuse_class"))
+				return Marshal.ToType<string>(obj["__fuse_class"]);
+			
+			return null;
 		}
 
 		void FullUpdatePages(UpdateFlags flags = UpdateFlags.None)
