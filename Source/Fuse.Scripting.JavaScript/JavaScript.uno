@@ -34,7 +34,7 @@ namespace Fuse.Reactive
 			if (Worker == null)
 			{
 				Worker = new Fuse.Scripting.JavaScript.ThreadWorker();
-				Fuse.Scripting.ScriptModule.AddMagicPath(".FuseJS/", TransformModel);
+				Fuse.Scripting.ScriptModule.AddMagicPath(".uno/fusejs/", TransformModel);
 			}
 			_nameTable = nameTable;
 			_scriptModule = new Fuse.Scripting.JavaScript.RootableScriptModule(Worker, nameTable);
