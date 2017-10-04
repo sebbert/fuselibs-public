@@ -33,10 +33,17 @@ namespace Fuse.Reactive
 			}
 
 			_js.ScriptModule.Dependencies = _deps;
-			_dc = _worker.Reflect(EvaluateExports());
+			EvaluateModule();
+			ReflectExportsJS();
+		}
+		
+		void ReflectExportsJS()
+		{
+			_dc = _worker.Reflect( _moduleResult == null ? null : _moduleResult.Object["exports"] );
 			UpdateManager.PostAction(SetDataContext);
 		}
-
+		
+		//argument for PostAction callback
 		object _dc;
 
 		// UI thread
@@ -46,6 +53,15 @@ namespace Fuse.Reactive
 				_js.SetDataContext(_dc);
 		}
 
+		internal bool ReflectExports()
+		{
+			if (_moduleResult == null)
+				return false;
+				
+			_worker.Invoke(ReflectExportsJS);
+			return true;
+		}
+		
 		ModuleResult _moduleResult;
 
 		public void Dispose()
@@ -57,16 +73,6 @@ namespace Fuse.Reactive
 				_moduleResult.Dispose();
 				_moduleResult = null;
 			}
-		}
-
-		object EvaluateExports()
-		{
-			EvaluateModule();
-
-			if (_moduleResult != null)
-				return _moduleResult.Object["exports"];
-
-			return null;
 		}
 
 		static object _resetHookMutex = new object();
