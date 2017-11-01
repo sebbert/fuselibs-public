@@ -26,6 +26,8 @@ namespace Fuse.Scripting
 			JSStackTrace = stackTrace;
 		}
 
+		const int MaxSourceLineLength = 600;
+
 		public override string Message
 		{
 			get
@@ -54,7 +56,16 @@ namespace Fuse.Scripting
 				if (!string.IsNullOrEmpty(SourceLine))
 				{
 					stringBuilder.Append("Source line: ");
-					stringBuilder.AppendLine(SourceLine);
+
+					if(SourceLine.Length > MaxSourceLineLength)
+					{
+						stringBuilder.Append(SourceLine.Substring(0, MaxSourceLineLength));
+						stringBuilder.AppendLine(" (...source line truncated because it is too long...)");
+					}
+					else
+					{
+						stringBuilder.AppendLine(SourceLine);
+					}
 				}
 				if (!string.IsNullOrEmpty(JSStackTrace))
 				{
