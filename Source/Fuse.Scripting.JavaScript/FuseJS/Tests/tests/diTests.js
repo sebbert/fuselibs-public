@@ -3,10 +3,10 @@ var GlobalDI = require("../../DI");
 var assert = require("assert");
 
 describe("FuseJS/DI", function() {
-    var DI = null;
-    beforeEach(function() {
-        DI = GlobalDI.createContainer();
-    });
+	var DI = null;
+	beforeEach(function() {
+		DI = GlobalDI.createContainer();
+	});
 
 	it("only accepts string or object", function() {
 		[1, NaN, undefined, null, Infinity].forEach(function(v) {
