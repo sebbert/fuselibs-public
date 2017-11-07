@@ -106,7 +106,7 @@ namespace Fuse.Reactive
 			public bool CompatibleTo( ParsedModelExpression o )
 			{
 				//there is no way to migrate these now as they might refer to tree objects, thus reject entirely
-				if (Args.Count != 0 || o.Args.Count != 0 ||	
+				if (Args.Count != 0 || o.Args.Count != 0 ||
 					Dependencies.Count != 0 || o.Dependencies.Count != 0)
 					return false;
 					
