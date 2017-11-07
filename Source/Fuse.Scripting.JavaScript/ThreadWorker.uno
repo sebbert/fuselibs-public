@@ -137,7 +137,7 @@ namespace Fuse.Scripting.JavaScript
 				try
 				{
 					var activity = _fuseJS.UpdateModules(_context);
-					didAnything ||= activity;
+					didAnything = didAnything || activity;
 				}
 				catch (Exception e)
 				{
