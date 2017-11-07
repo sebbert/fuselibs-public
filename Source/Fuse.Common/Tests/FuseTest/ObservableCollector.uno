@@ -47,6 +47,15 @@ namespace FuseTest
 				Value = value;
 				Index = index;
 			}
+
+			public override string ToString()
+			{
+				var str = Type.ToString() + ": " + Value.ToString();
+				if(Index >= 0) {
+					str += " (at " + Index + ")";
+				}
+				return str;
+			}
 		}
 		
 		public List<LogItem> Log = new List<LogItem>();
