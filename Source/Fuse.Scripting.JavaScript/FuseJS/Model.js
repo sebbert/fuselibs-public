@@ -142,9 +142,15 @@ function Model(initialState, stateInitializer)
 			var proto = Object.getPrototypeOf(obj);
 			if (proto && proto !== Object.prototype) { registerProps(proto); }
 		}
+
+		function hasParent() {
+			return meta.parents.length > 0;
+		}
 		
 		meta.evaluateDerivedProps = function(visited)
 		{
+			if(!hasParent()) return;
+
 			isDerivedPropsDirty = false;
 
 			if (visited.indexOf(node) !== -1) { return; }
@@ -218,7 +224,7 @@ function Model(initialState, stateInitializer)
 
 			isDirty = false;
 
-			if (meta.parents.length === 0) { 
+			if(!hasParent()) {
 				// This object is no longer attached to the model tree,
 				// we got this callback as an async remnant
 				return; 
