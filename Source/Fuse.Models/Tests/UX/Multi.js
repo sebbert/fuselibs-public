@@ -1,5 +1,5 @@
-export class Multi {
-	constructor(v) {
-		this.value = v
+export default class Multi {
+	get value() {
+		return this.Value;
 	}
 }
