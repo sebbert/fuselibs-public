@@ -170,6 +170,8 @@ namespace Fuse.Models
 				return;
 			}
 
+			ZoneJS.Initialize();
+
 			//TODO: this should not be necessary. It's done because there's a UX processor error, we get
 			//the IExpression prior to it being complete
 			var module = ParseModelExpression( _model.Source, _nameTable );
