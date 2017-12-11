@@ -33,18 +33,38 @@ function Model(initialState, stateInitializer)
 		var meta = stateToMeta.get(state);
 
 		if (meta instanceof Object) {
-			if (parentMeta !== null) { meta.parents.push(parentMeta); }
+			if (parentMeta != null) {
+				// try {
+				// 	console.dir((parentMeta.meta));
+				// }catch(e) {
+				// 	console.log(parentMeta);
+				// }
+				// console.log("Attaching " + meta.id || "(null)" + " to " + (parentMeta.meta ? parentMeta.meta.getPath() : "(null)"));
+				try {
+					console.log("Attaching " + meta.id + " as child of " + parentMeta.id + "(key: " + key + ")");
+				}catch(e){
+					console.log(e);
+				}
+
+				meta.parents.add(parentMeta);
+			}
 			return meta.node;
 		}
 
 		meta = {
-			parents: [parentMeta],
+			parents: new Set([parentMeta]),
 			id: idEnumerator++,
 			node: node,
 			state: state,
 			promises: {},
 			isClass: false
 		}
+
+		var _msg = "New: " + meta.id;
+		if(parentMeta && parentMeta.meta && parentMeta.meta.getPath) {
+			_msg += " (attached to " + parentMeta.meta.getPath() + ")";
+		}
+		console.log(_msg);
 		
 		idToMeta.set(meta.id, meta);
 		stateToMeta.set(state, meta);
@@ -150,7 +170,7 @@ function Model(initialState, stateInitializer)
 		}
 
 		function hasParent() {
-			return meta.parents.length > 0;
+			return meta.parents.size > 0;
 		}
 		
 		meta.evaluateDerivedProps = function(visited)
@@ -297,16 +317,19 @@ function Model(initialState, stateInitializer)
 
 		function removeAsParentFrom(node) {
 			if (!(node instanceof Object)) { return; }
+			console.log("remove " + meta.id + " as parent from " + node.__fuse_id);
 			var oldMeta = idToMeta.get(node.__fuse_id);
 			if (oldMeta instanceof Object) {
-				var thisIndex = oldMeta.parents.findIndex(function(x) { return x.meta == meta });
-				if (thisIndex == -1) {
-					throw new Error("Internal error: Attempted to detach child that is not attached to us");
+				console.dir(meta);
+				[...oldMeta.parents.entries()].map(console.dir);
+				if(!oldMeta.parents.has(meta)) {
+					debugger;
+					throw new Error("Internal error: Attempted to detach child that is not attached to us");	
 				}
-				oldMeta.parents.splice(thisIndex, 1);
+				oldMeta.parents.delete(meta);
 				oldMeta.invalidatePath();
 
-				if (oldMeta.parents.length === 0) {
+				if (oldMeta.parents.size === 0) {
 					idToMeta.delete(node.__fuse_id);
 					stateToMeta.delete(oldMeta.state);
 				}
@@ -342,6 +365,7 @@ function Model(initialState, stateInitializer)
 
 		function update(key, value, visited)
 		{
+			// console.log("update(", key, ",", value, ")")
 			if (value instanceof Function) {
 				if (!value.__fuse_isWrapped) {
 					state[key] = wrapFunction(value)
@@ -357,8 +381,11 @@ function Model(initialState, stateInitializer)
 
 				var newValue;
 				if (keyMeta instanceof Object) {
-					// Value is already instrumented, but re-instrument to add as parent
-					newValue = instrument({meta: meta, key: key}, keyMeta, value);
+					// Value is already instrumented
+					debugger;
+					newValue = keyMeta.node;
+					console.log("Attaching " + keyMeta.id + " as child of " + meta.id + "(key: " + key + ")");
+					keyMeta.parents.add({ meta:meta, key:key });
 				}
 				else if (value instanceof Object) {
 					newValue = instrument({meta: meta, key: key}, (value instanceof Array) ? [] : {}, value);
@@ -377,7 +404,8 @@ function Model(initialState, stateInitializer)
 					}
 				}
 				else {
-					removeAsParentFrom(oldValue);
+					if (oldValue instanceof Object)
+						removeAsParentFrom(oldValue);
 					set(key, newValue);
 				}
 			}
@@ -399,13 +427,13 @@ function Model(initialState, stateInitializer)
 		// Finds a valid path to the root TreeObservable, if any
 		function computePath()
 		{
-			for (var i = 0; i < meta.parents.length; i++) {
-				if (meta.parents[i] === null) { return [] }
+			for (var parentMeta of meta.parents) {
+				if (parentMeta === null) { return [] }
 				else 
 				{
-					var arr = meta.parents[i].meta.getPath();
+					var arr = parentMeta.meta.getPath();
 					if (arr instanceof Array) {
-						return arr.concat(meta.parents[i].key);
+						return arr.concat(parentMeta.key);
 					}	
 				}
 			}
