@@ -29,7 +29,6 @@ namespace Fuse.Reactive.Test
 			using (var diag = new RecordDiagnosticGuard())
 			using (var root = TestRootPanel.CreateWithChild(e))
 			{
-				//root.StepFrameJS();
 				var diagnostics = diag.DequeueAll();
 				Assert.Contains("not a function", diagnostics[0].Message);
 			}

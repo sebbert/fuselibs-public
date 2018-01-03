@@ -77,6 +77,9 @@ namespace Fuse.Scripting.JavaScript
 
 		void DiscardResult(IListener listener)
 		{
+			if (_currentCall != null)
+				_currentCall.Dispose();
+			
 			_currentCall = null;
 			listener.OnLostData(this);
 		}
