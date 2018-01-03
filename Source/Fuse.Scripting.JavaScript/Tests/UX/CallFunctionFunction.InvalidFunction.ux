@@ -1,0 +1,3 @@
+<Panel ux:Class="UX.CallFunctionFunction.InvalidFunction">
+	<FuseTest.DudElement ObjectValue="call('this is no function')" />
+</Panel>

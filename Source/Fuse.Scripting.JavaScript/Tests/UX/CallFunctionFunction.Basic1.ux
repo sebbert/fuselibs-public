@@ -1,0 +1,10 @@
+<Panel ux:Class="UX.CallFunctionFunction.Basic1">
+	<JavaScript>
+		exports.func = function(a, b) {
+			return a + " " + b;
+		}
+	</JavaScript>
+	<string ux:Property="str1" />
+	<string ux:Property="str2" />
+	<FuseTest.DudElement ux:Name="result" StringValue="{= call({func}, {ReadProperty str1}, {ReadProperty str2})}" />
+</Panel>
