@@ -23,14 +23,17 @@ namespace Fuse.Reactive.Test
 		}
 
 		[Test]
-		public void InvalidFunction()
+		public void DiscardResult()
 		{
-			var e = new UX.CallFunctionFunction.InvalidFunction();
-			using (var diag = new RecordDiagnosticGuard())
+			var e = new UX.CallFunctionFunction.DiscardResult();
 			using (var root = TestRootPanel.CreateWithChild(e))
 			{
-				var diagnostics = diag.DequeueAll();
-				Assert.Contains("not a function", diagnostics[0].Message);
+				root.StepFrameJS();
+				debug_log e.result.ObjectValue.GetType().FullName;
+				Assert.AreEqual((double)400, e.result.UseValue);
+				e.removeTheNumber.Perform();
+				root.StepFrameJS();
+				Assert.AreEqual(null, e.result.ObjectValue);
 			}
 		}
 	}

@@ -1,0 +1,14 @@
+<Panel ux:Class="UX.CallFunctionFunction.DiscardResult">
+	<JavaScript>
+		var Observable = require("FuseJS/Observable");
+
+		exports.square = function(n) { return n * n; }
+
+		exports.theNumber = Observable(20);
+		exports.removeTheNumber = function() {
+			exports.theNumber.clear();
+		}
+	</JavaScript>
+	<FuseTest.DudElement ux:Name="result" ObjectValue="call({square}, {theNumber})" />
+	<FuseTest.Invoke ux:Name="removeTheNumber" Handler="{removeTheNumber}" />
+</Panel>
