@@ -22,7 +22,84 @@ function Model(initialState, stateInitializer)
 	var idEnumerator = 0;
 	var store = this;
 
-	instrument(null, this, initialState, stateInitializer)
+	function exportDotGraph(rootObj) {
+		var output = "digraph " + initialState.constructor.name.replace(/[^a-z0-9_]/gi, "_") + " {\n";
+		var primitiveCount = 0;
+
+		function writeLine(str) {
+			output += str + "\n";
+		}
+
+		function writeRelation(from, to, label) {
+			writeLine(from + " -> " + to + ' [ label = ' + (label) + ' ];')
+		}
+
+		function findMeta(stateOrNode) {
+			if("__fuse_id" in stateOrNode) {
+				var meta = idToMeta.get(stateOrNode.__fuse_id) || stateToMeta.get(stateOrNode.__fuse_raw);
+				return meta;
+			}
+			return stateToMeta.get(stateOrNode);
+		}
+
+		function quote(str) {
+			return '"' + str.replace(/"/gi, '\\"') + '"';
+		}
+
+		function getNodeName(node) {
+			var meta = findMeta(node);
+			var name = (meta != undefined && "state" in meta) ? meta.state.constructor.name : "<unknown>";
+			var id = (meta != undefined) ? meta.id : "unknown"
+			return quote(name + " (" + id + ')');
+		}
+
+		function visit(obj) {
+			var meta = findMeta(obj);
+
+			for(var key in obj) {
+				if(key.startsWith("__fuse") || key.startsWith("$__fuse"))
+					continue;
+				var value = obj[key];
+				if (value instanceof Function) {
+					continue;
+				}
+				
+				if (value instanceof Object) {
+					var meta = findMeta(value);
+					if(meta) {
+						meta.parents.forEach(parent => {
+							writeRelation(getNodeName(obj), getNodeName(parent.meta.node), parent.key);
+						})
+					}
+					writeRelation(getNodeName(obj), getNodeName(value), quote(key));
+					visit(value);
+				}
+				else {
+					var displayValue = quote("(" + (typeof value) + ") " + (primitiveCount++));
+					writeRelation(getNodeName(obj), displayValue, quote(key));
+				}
+			}
+		}
+
+		visit(rootObj);
+
+		output += "\n}";
+
+		require("FuseJS/Storage").write('foo.dot', output).then(() => {
+			console.log("wrote to file");
+		}).catch(x => {
+			console.error(x);
+		})
+
+		debugger;
+		return output;
+	}
+
+	var rootNode = instrument(null, this, initialState, stateInitializer)
+
+	function graphit() {
+		return exportDotGraph(rootNode);
+	}
 
 	function instrument(parentMeta, node, state, stateInitializer)
 	{
@@ -317,14 +394,15 @@ function Model(initialState, stateInitializer)
 				var parentMetaToDelete = {key:key, meta:meta};
 				var thisIndex = oldMeta.parents.findIndex(function(x) { return isSameParentMeta(x, parentMetaToDelete) });
 				if (thisIndex == -1) {
+					graphit();
 					throw new Error("Internal error: Attempted to detach child that is not attached to us");
 				}
 				oldMeta.parents.splice(thisIndex, 1);
 				oldMeta.invalidatePath();
 
 				if (oldMeta.parents.length === 0) {
-					idToMeta.delete(node.__fuse_id);
-					stateToMeta.delete(oldMeta.state);
+					//idToMeta.delete(node.__fuse_id);
+					//stateToMeta.delete(oldMeta.state);
 				}
 			}
 		}
