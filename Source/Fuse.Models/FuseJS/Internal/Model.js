@@ -84,14 +84,18 @@ function Model(initialState, stateInitializer)
 		visit(rootObj);
 
 		output += "\n}";
+		
+		fetch("http://localhost:3000/update", {
+			method: "POST",
+			headers: {
+				"Content-Type": "text/plain"
+			},
+			body: output
+		}).catch(err => {
+			debugger;
+		});
 
-		require("FuseJS/Storage").write('foo.dot', output).then(() => {
-			console.log("wrote to file");
-		}).catch(x => {
-			console.error(x);
-		})
-
-		debugger;
+		console.log("Sent dot file!");
 		return output;
 	}
 
