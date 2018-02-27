@@ -14,6 +14,10 @@ function isThenable(thing) {
 		&& typeof thing.then === "function";
 }
 
+function DiffContext() {
+	this.visited = new Set();
+}
+
 function Model(initialState, stateInitializer)
 {
 	var stateToMeta = new Map();
@@ -209,21 +213,23 @@ function Model(initialState, stateInitializer)
 			isDirty = true;
 			rootZone.run(function() {
 				setTimeout(function() {
-					meta.diff(new Set())
+					meta.diff(new DiffContext());
 				}, 0)
 			});
 		}
 
 		var changesDetected = 0;
 
-		meta.diff = function(visited) {
-			if (!(visited instanceof Set)) {
-				throw new Error("Needs set of visited nodes");
+		meta.diff = function(ctx) {
+			if (!ctx)
+			{
+				throw new Error("diff(): Needs context");
 			}
-			if (visited.has(state)) {
+
+			if (ctx.visited.has(state)) {
 				return;
 			}
-			visited.add(state);
+			ctx.visited.add(state);
 
 			isDirty = false;
 
@@ -263,7 +269,7 @@ function Model(initialState, stateInitializer)
 				for (var k in state) {
 					if (!shouldEmitProperty(k)) continue;
 					var v = state[k];
-					update(k, v, visited);
+					update(k, v, ctx);
 				}
 			}
 
@@ -357,10 +363,10 @@ function Model(initialState, stateInitializer)
 				setInternal(path, key, value);
 			}
 
-			meta.diff(new Set());
+			meta.diff(new DiffContext());
 		}
 
-		function update(key, value, visited)
+		function update(key, value, ctx)
 		{
 			if (value instanceof Function) {
 				if (!value.__fuse_isWrapped) {
@@ -400,7 +406,7 @@ function Model(initialState, stateInitializer)
 					if (!newValueMeta.isClass) {
 						// If it's a plain object (no methods that could trigger change detection),
 						// perform change detection on its behalf
-						newValueMeta.diff(visited);
+						newValueMeta.diff(ctx);
 					}
 					return;
 				}
