@@ -12,6 +12,18 @@ namespace Fuse.Models.Test
 	public class ModelTest : ModelTestBase
 	{
 		[Test]
+		public void WriteBackEcho()
+		{
+			var e = new UX.Model.WriteBackEcho();
+			using (var root = TestRootPanel.CreateWithChild(e))
+			{
+				e.proxy.Add = (object v) => {
+					Assert.Fail("foo");
+				};
+			}
+		}
+
+		[Test]
 		public void UpdateDisconnectedAfterPromise()
 		{
 			var e = new UX.Model.UpdateDisconnectedAfterPromise();

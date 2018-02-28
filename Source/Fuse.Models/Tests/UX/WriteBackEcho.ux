@@ -1,0 +1,3 @@
+<Panel ux:Class="UX.Model.WriteBackEcho" xmlns:mt="Fuse.Models.Test">
+	<mt:ObservableArrayProxy ux:Name="proxy" Observable="{values}" />
+</Panel>
