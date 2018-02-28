@@ -341,7 +341,7 @@ function Model(initialState, stateInitializer)
 			node.__fuse_replaceAll = function(values) {
 				replaceAllInternal(state, values);
 				replaceAllInternal(node, values);
-				dirty();
+				meta.diff(new DiffContext());
 			}
 		}
 
