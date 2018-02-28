@@ -116,6 +116,8 @@ namespace Fuse.Scripting.JavaScript
 		{
 			protected readonly TreeObservable TreeObservable;
 			protected readonly object[] Arguments;
+			protected int Origin = 0;
+
 			protected Operation(TreeObservable inst, object[] args)
 			{
 				Arguments = args;
@@ -124,7 +126,7 @@ namespace Fuse.Scripting.JavaScript
 
 			public void Perform(Scripting.Context context)
 			{
-				if (Arguments.Length - SpecialArgCount < 0)
+				if (Arguments.Length - SpecialArgCount <= 0)
 				{
 					// Replace entire state
 					TreeObservable.Set(context, TreeObservable, (Scripting.Object)Arguments[0]);
@@ -156,6 +158,15 @@ namespace Fuse.Scripting.JavaScript
 
 			void Perform(object dc, int pos)
 			{
+				if (pos == 0)
+				{
+					if (Arguments[0] != null)
+						Origin = Marshal.ToInt(Arguments[0]);
+					
+					Perform(dc, pos+1);
+					return;
+				}
+
 				if (pos == Arguments.Length - SpecialArgCount)
 				{
 					Perform(dc);
@@ -202,10 +213,10 @@ namespace Fuse.Scripting.JavaScript
 				var key = Arguments[Arguments.Length-2];
 
 				var obj = dc as TreeObject;
-				if (obj != null) obj.Set(key.ToString(), WrappedValue, null);
+				if (obj != null) obj.Set(key.ToString(), WrappedValue, Origin);
 
 				var arr = dc as TreeArray;
-				if (arr != null) arr.Set(Marshal.ToInt(key), WrappedValue);
+				if (arr != null) arr.Set(Marshal.ToInt(key), WrappedValue, Origin);
 			}
 		}
 
@@ -219,7 +230,7 @@ namespace Fuse.Scripting.JavaScript
 			protected override void Perform(object dc)
 			{
 				var arr = dc as TreeArray;
-				if (arr != null) arr.Add(WrappedValue);
+				if (arr != null) arr.Add(WrappedValue, Origin);
 			}
 		}
 
@@ -236,7 +247,7 @@ namespace Fuse.Scripting.JavaScript
 			protected override void Perform(object dc)
 			{
 				var arr = dc as TreeArray;
-				if (arr != null) arr.InsertAt(_index, WrappedValue);
+				if (arr != null) arr.InsertAt(_index, WrappedValue, Origin);
 			}
 		}
 
@@ -254,8 +265,17 @@ namespace Fuse.Scripting.JavaScript
 			protected override void Perform(object dc)
 			{
 				var arr = dc as TreeArray;
-				if (arr != null) arr.RemoveAt(_index);
+				if (arr != null) arr.RemoveAt(_index, Origin);
 			}
+		}
+	}
+
+	internal static class TreeSubscriptionCounter
+	{
+		static int _counter = 1;
+
+		public static int GetNext() {
+			return _counter++;
 		}
 	}
 }

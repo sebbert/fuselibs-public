@@ -18,6 +18,7 @@ namespace Fuse.Scripting.JavaScript
 		internal class PropertySubscription : Subscription, IPropertySubscription
 		{
 			readonly IPropertyObserver _observer;
+			int _origin = TreeSubscriptionCounter.GetNext();
 
 			public PropertySubscription(TreeObject om, IPropertyObserver observer): base(om)
 			{
@@ -29,17 +30,21 @@ namespace Fuse.Scripting.JavaScript
 				Scripting.Object _obj;
 				string _key;
 				object _value;
-				public JSThreadSet(Scripting.Object obj, string key, object value)
+				int _origin;
+
+				public JSThreadSet(Scripting.Object obj, string key, object value, int origin)
 				{
 					_obj = obj;
 					_key = key;
 					_value = value;
+					_origin = origin;
 				}
+
 				public void Perform(Scripting.Context context)
 				{
 					var val = context.Unwrap(_value);
 					if (_obj.ContainsKey("__fuse_requestChange")) {
-						((Scripting.Function)_obj["__fuse_requestChange"]).Call(context, _key, val);
+						((Scripting.Function)_obj["__fuse_requestChange"]).Call(context, _key, val, _origin);
 					}
 					else
 					{
@@ -53,18 +58,19 @@ namespace Fuse.Scripting.JavaScript
 				var t = (TreeObject)SubscriptionSubject;
 
 				// Must be done first - to ensure the operations happen in the right order on the JS thread
-				Fuse.Reactive.JavaScript.Worker.Invoke(new JSThreadSet((Scripting.Object)t.Raw, key, newValue).Perform);
+				Fuse.Reactive.JavaScript.Worker.Invoke(
+					new JSThreadSet((Scripting.Object)t.Raw, key, newValue, _origin).Perform);
 
 				// then notify the UI (which in turn can trigger re-evaluation of scripts)
-				t.Set(key, newValue, this);
+				t.Set(key, newValue, _origin);
 				return true;
 			}
 
-			public void OnPropertyChanged(string key, object newValue, PropertySubscription exclude)
+			public void OnPropertyChanged(string key, object newValue, int origin)
 			{
-				if (exclude != this) _observer.OnPropertyChanged(this, key, newValue);
+				if (_origin != origin) _observer.OnPropertyChanged(this, key, newValue);
 				var next = Next as PropertySubscription;
-				if (next != null) next.OnPropertyChanged(key, newValue, exclude);
+				if (next != null) next.OnPropertyChanged(key, newValue, origin);
 			}
 		}
 
@@ -106,7 +112,7 @@ namespace Fuse.Scripting.JavaScript
 				{
 					foreach(var prop in _newProps)
 					{
-						sub.OnPropertyChanged(prop.Key, prop.Value, null);
+						sub.OnPropertyChanged(prop.Key, prop.Value, 0);
 					}
 				}
 			}
@@ -136,7 +142,7 @@ namespace Fuse.Scripting.JavaScript
 		}
 
 		// UI Thread
-		internal void Set(string key, object newValue, PropertySubscription exclude)
+		internal void Set(string key, object newValue, int origin)
 		{
 			if (_props.ContainsKey(key))
 				ValueMirror.Unsubscribe(_props[key]);
@@ -145,7 +151,7 @@ namespace Fuse.Scripting.JavaScript
 
 			var sub = Subscribers as PropertySubscription;
 			if (sub != null)
-				sub.OnPropertyChanged(key, newValue, exclude);
+				sub.OnPropertyChanged(key, newValue, origin);
 		}
 	}
 }

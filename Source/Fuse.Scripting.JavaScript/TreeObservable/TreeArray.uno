@@ -18,57 +18,66 @@ namespace Fuse.Scripting.JavaScript
 		internal class ArraySubscription: Subscription, ISubscription
 		{
 			readonly Fuse.Reactive.IObserver _observer;
+			int _origin = TreeSubscriptionCounter.GetNext();
 
 			public ArraySubscription(ArrayMirror am, Fuse.Reactive.IObserver observer): base(am)
 			{
 				_observer = observer;
 			}
 
-			public void OnReplaceAt(int index, object newValue)
+			public void OnReplaceAt(int index, object newValue, int origin)
 			{
-				_observer.OnNewAt(index, newValue);
+				if (_origin != origin)
+					_observer.OnNewAt(index, newValue);
+
 				var next = Next as ArraySubscription;
-				if (next != null) next.OnReplaceAt(index, newValue);
+				if (next != null) next.OnReplaceAt(index, newValue, origin);
 			}
 
-			public void OnAdd(object newValue)
+			public void OnAdd(object newValue, int origin)
 			{
-				_observer.OnAdd(newValue);
+				if (_origin != origin)
+					_observer.OnAdd(newValue);
+
 				var next = Next as ArraySubscription;
-				if (next != null) next.OnAdd(newValue);
+				if (next != null) next.OnAdd(newValue, origin);
 			}
 
-			public void OnInsertAt(int index, object newValue)
+			public void OnInsertAt(int index, object newValue, int origin)
 			{
-				_observer.OnInsertAt(index, newValue);
+				if (_origin != origin)
+					_observer.OnInsertAt(index, newValue);
 				var next = Next as ArraySubscription;
-				if (next != null) next.OnInsertAt(index, newValue);
+				if (next != null) next.OnInsertAt(index, newValue, origin);
 			}
 
-			public void OnRemoveAt(int index)
+			public void OnRemoveAt(int index, int origin)
 			{
-				_observer.OnRemoveAt(index);
+				if (_origin != origin)
+					_observer.OnRemoveAt(index);
 				var next = Next as ArraySubscription;
-				if (next != null) next.OnRemoveAt(index);
+				if (next != null) next.OnRemoveAt(index, origin);
 			}
 
-			public void OnReplaceAll(IArray values, ArraySubscription exclude)
+			public void OnReplaceAll(IArray values, int origin)
 			{
-				if (this != exclude) _observer.OnNewAll(values);
+				if (_origin != origin) _observer.OnNewAll(values);
 
 				var next = Next as ArraySubscription;
-				if (next != null) next.OnReplaceAll(values, exclude);
+				if (next != null) next.OnReplaceAll(values, origin);
 			}
 
 			class ReplaceAllOperation
 			{
 				Scripting.Array _target;
 				IArray _newValues;
+				int _origin;
 
-				public ReplaceAllOperation(Scripting.Array target, IArray newValues)
+				public ReplaceAllOperation(Scripting.Array target, IArray newValues, int origin)
 				{
 					_target = target;
 					_newValues = newValues;
+					_origin = origin;
 				}
 
 				public void Perform(Scripting.Context context)
@@ -80,15 +89,15 @@ namespace Fuse.Scripting.JavaScript
 					var newValuesJs = context.NewArray(nv);
 
 					var replaceAllFn = (Scripting.Function) context.Evaluate("replaceAll",
-						"(function(array, values) {" +
-							"if ('__fuse_replaceAll' in array) array.__fuse_replaceAll(values);" +
+						"(function(array, values, origin) {" +
+							"if ('__fuse_replaceAll' in array) array.__fuse_replaceAll(values, origin);" +
 							"else {"+
 								"array.length = 0;"+
 								"Array.prototype.push.apply(array, values);"+
-							"}"+
+							"}"+ 
 						"})");
 
-					replaceAllFn.Call(context, _target, newValuesJs);
+					replaceAllFn.Call(context, _target, newValuesJs, _origin);
 				}
 			}
 
@@ -97,10 +106,10 @@ namespace Fuse.Scripting.JavaScript
 			{
 				var ta = SubscriptionSubject as TreeArray;
 
-				var replaceAll = new ReplaceAllOperation((Scripting.Array)ta.Raw, values);
+				var replaceAll = new ReplaceAllOperation((Scripting.Array)ta.Raw, values, _origin);
 				replaceAll.Perform(context);
 
-				UpdateManager.PostAction(new ReplaceAllOnUIThreadClosure(ta, values, this).Perform);
+				UpdateManager.PostAction(new ReplaceAllOnUIThreadClosure(ta, values, _origin).Perform);
 			}
 
 			void ReplaceAllExclusive(IArray values)
@@ -108,10 +117,10 @@ namespace Fuse.Scripting.JavaScript
 				var ta = SubscriptionSubject as TreeArray;
 
 				var worker = Fuse.Reactive.JavaScript.Worker;
-				var replaceAll = new ReplaceAllOperation((Scripting.Array)ta.Raw, values);
+				var replaceAll = new ReplaceAllOperation((Scripting.Array)ta.Raw, values, _origin);
 				worker.Invoke(replaceAll.Perform);
 
-				ta.ReplaceAll(values, this);
+				ta.ReplaceAll(values, _origin);
 			}
 
 			void ISubscription.ClearExclusive()
@@ -163,22 +172,22 @@ namespace Fuse.Scripting.JavaScript
 		{
 			TreeArray _treeArray;
 			IArray _newValues;
-			ArraySubscription _exclude;
+			int _origin;
 
-			public ReplaceAllOnUIThreadClosure(TreeArray treeArray, IArray newValues, ArraySubscription exclude)
+			public ReplaceAllOnUIThreadClosure(TreeArray treeArray, IArray newValues, int origin)
 			{
 				_treeArray = treeArray;
 				_newValues = newValues;
-				_exclude = exclude;
+				_origin = origin;
 			}
 
 			public void Perform()
 			{
-				_treeArray.ReplaceAll(_newValues, _exclude);
+				_treeArray.ReplaceAll(_newValues, _origin);
 			}
 		}
 
-		internal void ReplaceAll(IArray newValues, ArraySubscription exclude)
+		internal void ReplaceAll(IArray newValues, int origin)
 		{
 			for (var i = 0; i < _items.Count; ++i)
 			{
@@ -194,10 +203,10 @@ namespace Fuse.Scripting.JavaScript
 
 			var sub = Subscribers as ArraySubscription;
 			if (sub != null)
-				sub.OnReplaceAll(newValues, exclude);
+				sub.OnReplaceAll(newValues, origin);
 		}
 
-		internal void Set(int index, object newValue)
+		internal void Set(int index, object newValue, int origin)
 		{
 			ValueMirror.Unsubscribe(_items[index]);
 
@@ -205,31 +214,31 @@ namespace Fuse.Scripting.JavaScript
 
 			var sub = Subscribers as ArraySubscription;
 			if (sub != null)
-				sub.OnReplaceAt(index, newValue);
+				sub.OnReplaceAt(index, newValue, origin);
 		}
 
-		internal void Add(object value)
+		internal void Add(object value, int origin)
 		{
 			_items.Add(value);
 			var sub = Subscribers as ArraySubscription;
 			if (sub != null)
-				sub.OnAdd(value);
+				sub.OnAdd(value, origin);
 		}
 
-		internal void InsertAt(int index, object value)
+		internal void InsertAt(int index, object value, int origin)
 		{
 			_items.Insert(index, value);
 			var sub = Subscribers as ArraySubscription;
 			if (sub != null)
-				sub.OnInsertAt(index, value);
+				sub.OnInsertAt(index, value, origin);
 		}
 
-		internal void RemoveAt(int index)
+		internal void RemoveAt(int index, int origin)
 		{
 			_items.RemoveAt(index);
 			var sub = Subscribers as ArraySubscription;
 			if (sub != null)
-				sub.OnRemoveAt(index);
+				sub.OnRemoveAt(index, origin);
 		}
 	}
 }

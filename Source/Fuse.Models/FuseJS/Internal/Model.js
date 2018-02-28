@@ -14,8 +14,9 @@ function isThenable(thing) {
 		&& typeof thing.then === "function";
 }
 
-function DiffContext() {
+function DiffContext(origin) {
 	this.visited = new Set();
+	this.origin = (origin == undefined) ? 0 : origin;
 }
 
 function Model(initialState, stateInitializer)
@@ -174,7 +175,7 @@ function Model(initialState, stateInitializer)
 						dealWithPromise(p, v);
 					}
 					else {
-						set(p, wrap(p, v), true); // don't count this as a state change
+						set(p, wrap(p, v), undefined, true); // don't count this as a state change
 					}
 				}
 				finally
@@ -243,28 +244,28 @@ function Model(initialState, stateInitializer)
 
 			if (state instanceof Array) {
 				for (var i = 0; i < Math.min(state.length, node.length); i++) { 
-					if (isThenable(state[i])) { dealWithPromise(i, state[i]); }
+					if (isThenable(state[i])) { dealWithPromise(i, state[i], ctx.origin); }
 					if (oldValueEquals(i, state[i])) continue;
 					
 					if (state.length > node.length) {
-						insertAt(i, state[i]);
+						insertAt(i, state[i], ctx.origin);
 						i++;
 					}
 					else if (state.length < node.length) {
-						removeRange(i, 1)
+						removeRange(i, 1, ctx.origin);
 						i--;
 					}
 					else {
 						removeAsParentFrom(i, node[i]);
-						set(i, wrap(i, state[i]))
+						set(i, wrap(i, state[i]), ctx.origin);
 					}
 				}
 				
 				if (state.length > node.length) { 
-					addRange(state.slice(node.length, state.length))
+					addRange(state.slice(node.length, state.length), ctx.origin)
 				}
 				else if (state.length < node.length) {
-					removeRange(i, node.length-state.length) 
+					removeRange(i, node.length-state.length, ctx.origin);
 				}
 			}
 			else {
@@ -338,10 +339,10 @@ function Model(initialState, stateInitializer)
 		}
 
 		if (node instanceof Array) {
-			node.__fuse_replaceAll = function(values) {
+			node.__fuse_replaceAll = function(values, origin) {
 				replaceAllInternal(state, values);
 				replaceAllInternal(node, values);
-				meta.diff(new DiffContext());
+				meta.diff(new DiffContext(origin));
 			}
 		}
 
@@ -350,7 +351,7 @@ function Model(initialState, stateInitializer)
 			Array.prototype.push.apply(subject, values);
 		}
 
-		node.__fuse_requestChange = function(key, value) {
+		node.__fuse_requestChange = function(key, value, origin) {
 			var changeAccepted = true;
 			if ('$requestChange' in state) {
 				changeAccepted = state.$requestChange(key, value);
@@ -365,7 +366,7 @@ function Model(initialState, stateInitializer)
 				setInternal(path, key, value);
 			}
 
-			meta.diff(new DiffContext());
+			meta.diff(new DiffContext(origin));
 		}
 
 		function update(key, value, ctx)
@@ -373,13 +374,13 @@ function Model(initialState, stateInitializer)
 			if (value instanceof Function) {
 				if (!value.__fuse_isWrapped) {
 					state[key] = wrapFunction(value)
-					set(key, state[key]);
+					set(key, state[key], ctx.origin);
 				}
 				return;
 			}
 
 			if (isThenable(value)) {
-				dealWithPromise(key, value);
+				dealWithPromise(key, value, ctx.origin);
 				return;
 			}
 
@@ -393,7 +394,7 @@ function Model(initialState, stateInitializer)
 					removeAsParentFrom(key, oldNode);
 
 				if (value !== oldNode)
-					set(key, value);
+					set(key, value, ctx.origin);
 
 				return;
 			}
@@ -424,7 +425,7 @@ function Model(initialState, stateInitializer)
 			if (oldNode instanceof Object)
 				removeAsParentFrom(key, oldNode);
 
-			set(key, newNode);
+			set(key, newNode, ctx.origin);
 		}
 
 		var cachedPath = null;
@@ -461,7 +462,7 @@ function Model(initialState, stateInitializer)
 			}
 		}
 
-		function set(key, value, omitStateChange)
+		function set(key, value, origin, omitStateChange)
 		{
 			var path = getPath();
 			if (!path) {
@@ -469,8 +470,8 @@ function Model(initialState, stateInitializer)
 			}
 			if (!setInternal(path, key, value, omitStateChange)) { return; }
 
-			var argPath = path.concat(key, value instanceof Array ? [value] : value);
-			TreeObservable.set.apply(store, argPath);
+			var args = [origin].concat(path, key, [value]);
+			TreeObservable.set.apply(store, args);
 		}
 
 		function updateArrayParentIndices(start, offset) {
@@ -489,7 +490,7 @@ function Model(initialState, stateInitializer)
 			}
 		}
 
-		function removeRange(index, count) {
+		function removeRange(index, count, origin) {
 			for (var i = 0; i < count; i++) {
 				removeAsParentFrom(index+i, node[index+i]);
 			}
@@ -499,9 +500,9 @@ function Model(initialState, stateInitializer)
 			if(!path) {
 				return; // No longer attached to the model graph
 			}
-			var removePath = getPath().concat(index);
+			var args = [origin].concat(getPath(), index);
 			for (var i = 0; i < count; i++) {
-				TreeObservable.removeAt.apply(store, removePath);
+				TreeObservable.removeAt.apply(store, args);
 			}
 			changesDetected++;
 		}
@@ -521,7 +522,7 @@ function Model(initialState, stateInitializer)
 			}
 		}
 
-		function insertAt(index, item) {
+		function insertAt(index, item, origin) {
 			node.splice(index, 0, null);
 			node[index] = item = wrap(index, item)
 			
@@ -531,17 +532,24 @@ function Model(initialState, stateInitializer)
 			if(!path) {
 				return; // No longer attached to the model graph
 			}
-
-			TreeObservable.insertAt.apply(store, path.concat([index, item]));
+			
+			var args = [origin].concat(path, [index, item]);
+			TreeObservable.insertAt.apply(store, args);
 			changesDetected++;
 		}
 
-		function addRange(items) {
+		function addRange(items, origin) {
+			var path = getPath();
+			if(!path) {
+				return; // No longer attached to the model graph
+			}
+
 			for (var item of items) {
 				var index = node.length;
-				node.push(null);
 				node[index] = item = wrap(index, item);
-				TreeObservable.add.apply(store, getPath().concat([item]));
+
+				var args = [origin].concat(path, [item]);
+				TreeObservable.add.apply(store, args);
 			}
 			
 			changesDetected++;
